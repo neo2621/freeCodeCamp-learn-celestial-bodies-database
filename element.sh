@@ -1,25 +1,50 @@
 #! /bin/bash
 
-PSQL="psql --username=freecodecamp --dbname=periodic_table --tuples-only -c"
+PSQL="psql --username=freecodecamp --dbname=periodic_table -t --no-align -c"
+X=10
+
+DISTINCT(){
+
+MAIN_QUERY="select properties.atomic_number, atomic_mass, melting_point_celsius, boiling_point_celsius, symbol, name, types.type from properties inner join elements on properties.atomic_number=elements.atomic_number full join types on properties.type_id=types.type_id"
+ 
+if [[ $1 =~ ^[0-9]+$ ]]
+then
+
+  QUR=$($PSQL "$MAIN_QUERY WHERE elements.atomic_number=$1")
+  PRINT_INFO $QUR
+  
+elif [[ $1 =~ ^[a-zA-Z]{1,2}$ ]]
+then
+
+  QUR=$($PSQL "$MAIN_QUERY WHERE elements.symbol='$1'")
+  PRINT_INFO $QUR
+
+else
+
+  QUR=$($PSQL "$MAIN_QUERY WHERE elements.name='$1'")
+  PRINT_INFO $QUR
+
+fi
+
+}
+
+PRINT_INFO(){
+  if [[ $1 ]]
+  then
+  IFS="|"; read AN AM MP BP SYM NAME TY  <<< $1
+  INFORMATION $AN $AM $MP $BP $SYM $NAME $TY
+  else
+    echo -e "I could not find that element in the database."
+  fi
+}
+
+INFORMATION(){
+  echo -e "The element with atomic number $1 is $6 ($5). It's a $7, with a mass of $2 amu. $6 has a melting point of $3 celsius and a boiling point of $4 celsius."
+}
 
 if [[ $1 ]]
 then
-if [[  $1 =~ ^[0-9]+$ ]]
-then
-ELEMENT=$($PSQL "SELECT atomic_number, atomic_mass, melting_point_celsius, boiling_point_celsius, symbol, name, type FROM properties JOIN elements USING(atomic_number) JOIN types USING(type_id) WHERE elements.atomic_number  $1 ORDER BY elements.atomic_number LIMIT 1")
+  DISTINCT $1
 else
-ELEMENT=$($PSQL "SELECT atomic_number, atomic_mass, melting_point_celsius, boiling_point_celsius, symbol, name, type FROM properties JOIN elements USING(atomic_number) JOIN types USING(type_id) WHERE elements.name LIKE '$1%' ORDER BY elements.atomic_number LIMIT 1")
-fi
-  if [[ -z $ELEMENT ]]
-  then
-    echo "I could not find that element in the database"
-   else
-    echo $ELEMENT | while IFS=\ | read ATOMIC_NUMBER ATOMIC_MASS MPC BPC SY NAME TYPE
-  do
-    echo "The element with atomic number $ATOMIC_NUMBER is $NAME ($SY). It's a $TYPE, with a mass of $ATOMIC_MASS amu. Hydrogen has a melting point of $MPC celsius and a boiling point of $BPC celsius."
-  done
-  
-   fi
-else
-echo "Please provide an element as an argument."
+  echo -e "Please provide an element as an argument."
 fi
